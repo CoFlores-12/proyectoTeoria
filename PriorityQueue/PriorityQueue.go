@@ -3,13 +3,13 @@ package priorityqueue
 import "fmt"
 
 type Item struct {
-	data     any
-	priority int
-	next     *Item
+	Data     any
+	Priority int
+	Next     *Item
 }
 
 func (it Item) String() string {
-	return fmt.Sprintf("Data %v, Priority %d", it.data, it.priority)
+	return fmt.Sprintf("Data: %v, Priority: %d", it.Data, it.Priority)
 }
 
 type PriorityQueue struct {
@@ -27,19 +27,7 @@ func NewPriorityQueue(max int) *PriorityQueue {
 	}
 }
 
-const (
-	ThirdAgePriority = 1
-	RegularPriority  = 2
-)
-
-func (pq *PriorityQueue) Push(data any, isThirdAge bool) {
-	var priority int
-	if isThirdAge {
-		priority = ThirdAgePriority
-	} else {
-		priority = RegularPriority
-	}
-
+func (pq *PriorityQueue) Push(data any, priority int) {
 	if priority < 0 || priority > pq.maxPriority {
 		fmt.Println("Fuera de rango")
 		return
@@ -47,18 +35,18 @@ func (pq *PriorityQueue) Push(data any, isThirdAge bool) {
 
 	if pq.priorities[priority] == nil {
 		pq.priorities[priority] = &Item{
-			data:     data,
-			priority: priority,
+			Data:     data,
+			Priority: priority,
 		}
 		pq.elements++
 		return
 	}
 
 	tmp := pq.priorities[priority]
-	for tmp.next != nil {
-		tmp = tmp.next
+	for tmp.Next != nil {
+		tmp = tmp.Next
 	}
-	tmp.next = &Item{data: data, priority: priority}
+	tmp.Next = &Item{Data: data, Priority: priority}
 	pq.elements++
 }
 
@@ -74,43 +62,16 @@ func (pq *PriorityQueue) Pop() *Item {
 	if pq.elements == 0 {
 		return nil
 	}
-
-	if pq.countThirdAge < 1 && pq.priorities[ThirdAgePriority] != nil {
-		pq.countThirdAge++
-		pq.countRegular = 0
-		tmp := pq.priorities[ThirdAgePriority]
-		pq.priorities[ThirdAgePriority] = tmp.next
-		pq.elements--
-		return tmp
-	}
-
-	if pq.countRegular < 2 && pq.priorities[RegularPriority] != nil {
-		pq.countRegular++
-		if pq.countRegular == 2 {
-			pq.countThirdAge = 0
+	max := pq.GetMaxPriority()
+	for max > 0 {
+		tmp := pq.priorities[max]
+		if tmp != nil {
+			break
 		}
-		tmp := pq.priorities[RegularPriority]
-		pq.priorities[RegularPriority] = tmp.next
-		pq.elements--
-		return tmp
+		max--
 	}
-
-	if pq.priorities[ThirdAgePriority] != nil {
-		pq.countThirdAge = 1
-		pq.countRegular = 0
-		tmp := pq.priorities[ThirdAgePriority]
-		pq.priorities[ThirdAgePriority] = tmp.next
-		pq.elements--
-		return tmp
-	}
-
-	if pq.priorities[RegularPriority] != nil {
-		pq.countRegular++
-		tmp := pq.priorities[RegularPriority]
-		pq.priorities[RegularPriority] = tmp.next
-		pq.elements--
-		return tmp
-	}
-
-	return nil
+	tmp := pq.priorities[max]
+	pq.priorities[max] = tmp.Next
+	pq.elements--
+	return tmp
 }

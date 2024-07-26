@@ -1,158 +1,77 @@
 package main
 
 import (
-	// "testing"
-
 	"fmt"
 	"math/rand"
 	"os"
-	priorityqueue "priorityqueue/PriorityQueue"
+	"priorityqueue/priorityqueue"
 	"time"
 )
 
-// func TestFunctions(t *testing.T) {
-
-// }
-
-// func TestLen(t *testing.T) {
-
-// 	ln := 0
-// 	if ln != 8 {
-// 		t.Errorf("Esperado: %v / Obtenido: %v", 8, ln)
-// 	}
-// }
-
 type Ticket struct {
 	id        string
-	priority  int
 	arrival   string
 	startTime string
 	endTime   string
 }
 
 type Cajero struct {
-	id   int
-	busy bool
+	id       int
+	busy     bool
+	time1    time.Time
+	timeBusy time.Duration
 }
 
 var queue *priorityqueue.PriorityQueue
 
 func main() {
 	nCajeros := 2
-	nTickets := 10
+	rand.Seed(time.Now().UnixNano())
 
 	queue = priorityqueue.NewPriorityQueue(2)
 	cajeros := make([]*Cajero, nCajeros)
 
 	// iniciar los cajeros
 	for i := 0; i < nCajeros; i++ {
-		cajeros[i] = &Cajero{id: i + 1, busy: false}
+		timeStart := time.Now()
+		cajeros[i] = &Cajero{id: i + 1, busy: false, time1: timeStart, timeBusy: 0 * time.Second}
 	}
 
-	// Generar y agregar tickets a la cola
-	for i := 0; i <= nTickets; i++ {
-		isThirdAge := rand.Intn(2) == 0
-		newTicket(i, isThirdAge)
+	//generar tickets
+	for i := 0; i < 2; i++ {
+		randriority := rand.Intn(3)
+		hour := rand.Intn(24)
+		minute := rand.Intn(60)
+		second := rand.Intn(60)
+		timeString := fmt.Sprintf("%02d:%02d:%02d", hour, minute, second)
+		newTicket(randriority, timeString)
 	}
 
-	// Atender tickets
-	for i := 0; queue.GetLenElements() > 0; i++ {
-
-		cajero := rand.Intn(3)
-
-		item := queue.Pop()
-		serveTime := time.Duration(rand.Intn(5)+1) * time.Second
-		endTime1 := time.Now().Add(time.Duration(serveTime) * time.Second).Format("15-04-05")
-
-		fmt.Printf(" atendido por: %d termino a las: %s\n", cajero, endTime1, item)
-
-		// switch servidor {
-		// case 0:
-
-		// 	break
-		// }
-
-		// 	if banderaCajero1 {
-		// 		cajeros[t].busy = true
-		// 		item := queue.Pop()
-
-		// 	}
-
-		// if cajeros[t].busy == false {
-		// 	cajeros[t].busy = true
-		// 	item := queue.Pop()
-
-		// 	fmt.Printf("\n", item)
-
-		// 	// print("cajero", t)
-		// 	cajeros[t].busy = false
-		// 	serveTime := time.Duration(rand.Intn(5)+1) * time.Second
-		// 	time.Sleep(serveTime)
-		// 	endTime := time.Now().Format("15-04-05")
-		// 	print(endTime)
-		// }
-
-		// time1 := time.Now().Format("15:04:05")
-
-		// switch true {
-		// case cajeros[0].busy == false:
-		// 	cajeros[0].busy = true
-		// 	item1 := queue.Pop()
-
-		// 	print("cajero", 0)
-		// 	tiempo1 := time1
-
-		// 	serveTime := time.Duration(rand.Intn(5)+1) * time.Second
-		// 	// time.Sleep(serveTime)
-
-		// 	endTime1 := time.Now().Add(time.Duration(serveTime) * time.Second).Format("15:04:05")
-
-		// 	if endTime1 == tiempo1 {
-		// 		cajeros[0].busy = false
-		// 		fmt.Printf("\n", item1)
-		// 		print(endTime1)
-		// 	}
-
-		// 	break
-
-		// }
-
-		// // prueba
-		// ticketID := "T1"
-		// waitTime := 5
-		// priority := 1
-		// startTime := time.Now().Format("15-04-05")
-		// endTime := time.Now().Add(2 * time.Minute).Format("15-04-05")
-		// serveTime := time.Now().Add(6 * time.Minute).Format("15-04-05")
-
-		// //llenado del .log
-		// fillLog(ticketID, waitTime, priority, startTime, endTime, serveTime)
-
+	//asignar tickets
+	for i := 0; i < nCajeros; i++ {
+		tiempoActual := time.Now()
+		tiempoTranscurrido := tiempoActual.Sub(cajeros[i].time1)
+		if tiempoTranscurrido > cajeros[i].timeBusy {
+			continue
+		}
+		ticket := queue.Pop()
+		if ticket != nil {
+			fmt.Println("Ticket:", ticket)
+			fmt.Println("Data:", ticket.Data)
+		}
 	}
-
 }
 
-// funcion para crear unu boleto
-func newTicket(id int, isThirdAge bool) {
-	t := time.Now()
-	time := t.Format("15-04-05")
-	prio := 1
-
-	if isThirdAge == true {
-		prio = 1
-	} else {
-		prio = 2
-	}
-
+// funcion para crear unu ticket
+func newTicket(priority int, timeA string) *string {
+	//TODO: generar ID, T1 terceraEdad, R1 Regular
+	var id = ""
 	ticket := &Ticket{
-		id:       fmt.Sprintf("T%d", id),
-		priority: prio,
-		arrival:  time,
+		id:      id,
+		arrival: timeA,
 	}
-	if isThirdAge {
-		ticket.priority = priorityqueue.ThirdAgePriority
-	}
-	queue.Push(ticket, isThirdAge)
+	queue.Push(ticket, priority)
+	return &id
 }
 
 // funcion para llenar el reports.py
