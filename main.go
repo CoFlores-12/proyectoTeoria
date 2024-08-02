@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"os"
 	"priorityqueue/priorityqueue"
+	"strconv"
 	"time"
 )
 
@@ -38,39 +39,72 @@ func main() {
 	}
 
 	//generar tickets
-	for i := 0; i < 2; i++ {
+	for i := 0; i < 10; i++ {
 		randriority := rand.Intn(3)
-		hour := rand.Intn(24)
+		hour := rand.Intn(10) + 8
 		minute := rand.Intn(60)
 		second := rand.Intn(60)
 		timeString := fmt.Sprintf("%02d:%02d:%02d", hour, minute, second)
-		newTicket(randriority, timeString)
+		id := strconv.Itoa(i)
+
+		min := 30  // 30 segundos
+		max := 600 // 10  minutos
+		// se calcula aleatoriamente el tiempo que va a tardar en aternderse dicho ticket
+		duracion := strconv.Itoa(rand.Intn(max-min+1) + min)
+
+		newTicket(randriority, id, timeString, duracion)
 	}
 
 	//asignar tickets
-	for i := 0; i < nCajeros; i++ {
-		tiempoActual := time.Now()
-		tiempoTranscurrido := tiempoActual.Sub(cajeros[i].time1)
-		if tiempoTranscurrido > cajeros[i].timeBusy {
-			continue
-		}
+	for i := 0; queue.GetLenElements() > 0; i++ {
+		segundos := 0
+
 		ticket := queue.Pop()
-		if ticket != nil {
-			fmt.Println("Ticket:", ticket)
-			fmt.Println("Data:", ticket.Data)
+
+		newTimeString, err := sumarSegundos(ticket.Arrival, 330)
+		if err != nil {
+			fmt.Println("Error al sumar segundos:", err)
+			return
 		}
+
+		fmt.Printf("ID: %s, Entro: %s, se va a tardar: %s, con prioridad: %d va a salir: %s\n", ticket.ID, ticket.Arrival, ticket.StartTime, ticket.Priority, newTimeString)
+
+		time.Sleep(1 * time.Second)
+		segundos++
 	}
+
+}
+
+func parseTimeString(timeString string) (time.Time, error) {
+	layout := "15:04:05"
+	return time.Parse(layout, timeString)
+}
+
+func sumarSegundos(timeString string, secondsToAdd int) (string, error) {
+	parsedTime, err := parseTimeString(timeString)
+	if err != nil {
+		return "", err
+	}
+
+	newTime := parsedTime.Add(time.Duration(secondsToAdd) * time.Second)
+	return newTime.Format("15:04:05"), nil
 }
 
 // funcion para crear unu ticket
-func newTicket(priority int, timeA string) *string {
-	//TODO: generar ID, T1 terceraEdad, R1 Regular
-	var id = ""
+func newTicket(priority int, id string, arrival string, startTime string) *string {
 	ticket := &Ticket{
-		id:      id,
-		arrival: timeA,
+		id:        id,
+		arrival:   arrival,
+		startTime: startTime,
 	}
-	queue.Push(ticket, priority)
+
+	if priority == 1 {
+		id = "T" + id
+	} else {
+		id = "R" + id
+	}
+
+	queue.Push(ticket, priority, id, arrival, startTime)
 	return &id
 }
 
