@@ -26,12 +26,14 @@ type Cajero struct {
 
 var queue *priorityqueue.PriorityQueue
 
+var nCajeros int = 2
+var cajeros = make([]*Cajero, nCajeros)
+
 func main() {
-	nCajeros := 2
+
 	rand.Seed(time.Now().UnixNano())
 
 	queue = priorityqueue.NewPriorityQueue(2)
-	cajeros := make([]*Cajero, nCajeros)
 
 	// iniciar los cajeros
 	for i := 0; i < nCajeros; i++ {
@@ -45,10 +47,7 @@ func main() {
 // ############################## Server ##############################
 func initServer() {
 	mux := http.NewServeMux()
-	//generar tickets
-	for i := 0; i < 10; i++ {
-		generarTicket(i)
-	}
+
 	go asignarTickets()
 	mux.Handle("/", &homeHandler{})
 	http.ListenAndServe(":8080", mux)
@@ -58,19 +57,30 @@ func initServer() {
 type homeHandler struct{}
 
 func (h *homeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	randId := rand.Intn(100)
-	generarTicket(randId)
-	w.Write([]byte("Hello world"))
+
+	if r.URL.Path == "/NewTicket" {
+		randId := rand.Intn(100)
+		generarTicket(randId)
+		w.Write([]byte("Hello world"))
+		response := fmt.Sprintf("Ingreso el Ticket con ID: %d", randId)
+		w.Write([]byte(response))
+	} else {
+
+		http.NotFound(w, r)
+	}
 }
 
 //############################## Server ##############################
 
 func generarTicket(i int) {
 	randriority := rand.Intn(2) + 1
-	hour := rand.Intn(10) + 8
-	minute := rand.Intn(60)
-	second := rand.Intn(60)
-	timeString := fmt.Sprintf("%02d:%02d:%02d", hour, minute, second)
+
+	// Obtener la hora actual
+	currentTime := time.Now()
+
+	// Formatear la hora actual en el formato "HH:MM:SS"
+	timeString := fmt.Sprintf(currentTime.Format("15-04-05"))
+
 	id := strconv.Itoa(i)
 
 	min := 30  // 30 segundos
@@ -80,26 +90,37 @@ func generarTicket(i int) {
 
 	newTicket(randriority, id, timeString, duracion)
 }
+
 func asignarTickets() {
 	//asignar tickets
 	for true {
+
 		ticket := queue.Pop()
 		if ticket == nil {
 			continue
 		}
-		newTimeString, err := sumarSegundos(ticket.Arrival, 330)
+		// Convertir el tiempo
+		numDuracion, err := strconv.Atoi(ticket.StartTime)
+		if err != nil {
+			// Manejar el error si la conversión falla
+			fmt.Println("Error:", numDuracion)
+			return
+		}
+
+		newTimeString, err := sumarSegundos(ticket.Arrival, numDuracion)
 		if err != nil {
 			fmt.Println("Error al sumar segundos:", err)
 			return
 		}
 
 		fmt.Printf("ID: %s, Entro: %s, se va a tardar: %s, con prioridad: %d va a salir: %s\n", ticket.ID, ticket.Arrival, ticket.StartTime, ticket.Priority, newTimeString)
+		fillLog(ticket.ID, 1, ticket.Priority, ticket.Arrival, newTimeString, ticket.Arrival)
 
-		time.Sleep(1 * time.Second)
 	}
 }
+
 func parseTimeString(timeString string) (time.Time, error) {
-	layout := "15:04:05"
+	layout := "15-04-05"
 	return time.Parse(layout, timeString)
 }
 
@@ -110,7 +131,7 @@ func sumarSegundos(timeString string, secondsToAdd int) (string, error) {
 	}
 
 	newTime := parsedTime.Add(time.Duration(secondsToAdd) * time.Second)
-	return newTime.Format("15:04:05"), nil
+	return newTime.Format("15-04-05"), nil
 }
 
 // funcion para crear unu ticket
