@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"math/rand"
+	"net/http"
 	"os"
 	"priorityqueue/priorityqueue"
 	"strconv"
@@ -37,30 +38,55 @@ func main() {
 		timeStart := time.Now()
 		cajeros[i] = &Cajero{id: i + 1, busy: false, time1: timeStart, timeBusy: 0 * time.Second}
 	}
+	initServer()
 
+}
+
+// ############################## Server ##############################
+func initServer() {
+	mux := http.NewServeMux()
 	//generar tickets
 	for i := 0; i < 10; i++ {
-		randriority := rand.Intn(3)
-		hour := rand.Intn(10) + 8
-		minute := rand.Intn(60)
-		second := rand.Intn(60)
-		timeString := fmt.Sprintf("%02d:%02d:%02d", hour, minute, second)
-		id := strconv.Itoa(i)
-
-		min := 30  // 30 segundos
-		max := 600 // 10  minutos
-		// se calcula aleatoriamente el tiempo que va a tardar en aternderse dicho ticket
-		duracion := strconv.Itoa(rand.Intn(max-min+1) + min)
-
-		newTicket(randriority, id, timeString, duracion)
+		generarTicket(i)
 	}
+	go asignarTickets()
+	mux.Handle("/", &homeHandler{})
+	http.ListenAndServe(":8080", mux)
 
+}
+
+type homeHandler struct{}
+
+func (h *homeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	randId := rand.Intn(100)
+	generarTicket(randId)
+	w.Write([]byte("Hello world"))
+}
+
+//############################## Server ##############################
+
+func generarTicket(i int) {
+	randriority := rand.Intn(2) + 1
+	hour := rand.Intn(10) + 8
+	minute := rand.Intn(60)
+	second := rand.Intn(60)
+	timeString := fmt.Sprintf("%02d:%02d:%02d", hour, minute, second)
+	id := strconv.Itoa(i)
+
+	min := 30  // 30 segundos
+	max := 600 // 10  minutos
+	// se calcula aleatoriamente el tiempo que va a tardar en aternderse dicho ticket
+	duracion := strconv.Itoa(rand.Intn(max-min+1) + min)
+
+	newTicket(randriority, id, timeString, duracion)
+}
+func asignarTickets() {
 	//asignar tickets
-	for i := 0; queue.GetLenElements() > 0; i++ {
-		segundos := 0
-
+	for true {
 		ticket := queue.Pop()
-
+		if ticket == nil {
+			continue
+		}
 		newTimeString, err := sumarSegundos(ticket.Arrival, 330)
 		if err != nil {
 			fmt.Println("Error al sumar segundos:", err)
@@ -70,11 +96,8 @@ func main() {
 		fmt.Printf("ID: %s, Entro: %s, se va a tardar: %s, con prioridad: %d va a salir: %s\n", ticket.ID, ticket.Arrival, ticket.StartTime, ticket.Priority, newTimeString)
 
 		time.Sleep(1 * time.Second)
-		segundos++
 	}
-
 }
-
 func parseTimeString(timeString string) (time.Time, error) {
 	layout := "15:04:05"
 	return time.Parse(layout, timeString)
