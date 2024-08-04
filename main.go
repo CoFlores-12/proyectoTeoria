@@ -12,10 +12,8 @@ import (
 )
 
 type Ticket struct {
-	id        string
-	arrival   string
-	startTime string
-	endTime   string
+	id      string
+	arrival string
 }
 
 type Cajero struct {
@@ -105,6 +103,16 @@ func generarTicket(id string, priority int) {
 }
 
 func asignarTickets() {
+	// llenar el log
+	// abrir el archivo de registro
+	logFile, err := os.OpenFile("reports.log", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+
+	if err != nil {
+		fmt.Printf("Error abriendo el archivo de registro: %v\n", err)
+		return
+	}
+	defer logFile.Close()
+
 	//asignar tickets
 	for true {
 
@@ -127,8 +135,11 @@ func asignarTickets() {
 
 			cajeros[0].time1 = timeString
 
-			fmt.Printf("ID: %s,lo atendio 1, con prioridad: %d, Entro: %s, se va a tardar: %d va a salir: %s\n", ticket.ID, ticket.Priority, ticket.Arrival, duracion, sumarSegundos(timeString, duracion))
-			fillLog(ticket.ID, 1, ticket.Priority, ticket.Arrival, timeString, ticket.Arrival)
+			fmt.Printf("ID: %s,lo atendio 1, con prioridad: %d, Entro: %s, se va a tardar: %d, se atendia a las: %s va a salir: %s\n", ticket.ID, ticket.Priority, ticket.Arrival, duracion, timeString, sumarSegundos(timeString, duracion))
+
+			// ingresar datos al arcchivo
+			logMessage := fmt.Sprintf("id:%s,wd:%d,priority:%d,t1:%s,t2:%s,t3:%s\n", ticket.ID, 1, ticket.Priority, ticket.Arrival, timeString, sumarSegundos(timeString, duracion))
+			logFile.WriteString(logMessage)
 
 		}
 
@@ -138,8 +149,8 @@ func asignarTickets() {
 				continue
 			}
 
-			min := 3  // 30 segundos
-			max := 20 // 10  minutos
+			min := 30  // 30 segundos
+			max := 600 // 10  minutos = 600 segundos
 			// se calcula aleatoriamente el tiempo que va a tardar en aternderse dicho ticket
 			duracion := rand.Intn(max-min+1) + min
 
@@ -147,8 +158,9 @@ func asignarTickets() {
 
 			cajeros[1].time1 = timeString
 
-			fmt.Printf("ID: %s,lo atendio 2, con prioridad: %d, Entro: %s, se va a tardar: %d va a salir: %s\n", ticket.ID, ticket.Priority, ticket.Arrival, duracion, sumarSegundos(timeString, duracion))
-			fillLog(ticket.ID, 2, ticket.Priority, ticket.Arrival, timeString, ticket.Arrival)
+			fmt.Printf("ID: %s,lo atendio 2, con prioridad: %d, Entro: %s, se va a tardar: %d, se atendia a las: %s va a salir: %s\n", ticket.ID, ticket.Priority, ticket.Arrival, duracion, timeString, sumarSegundos(timeString, duracion))
+			logMessage := fmt.Sprintf("id:%s,wd:%d,priority:%d,t1:%s,t2:%s,t3:%s\n", ticket.ID, 2, ticket.Priority, ticket.Arrival, timeString, sumarSegundos(timeString, duracion))
+			logFile.WriteString(logMessage)
 		}
 
 	}
@@ -193,23 +205,4 @@ func newTicket(priority int, id string, arrival string) *string {
 
 	queue.Push(ticket, priority, id, arrival)
 	return &id
-}
-
-// funcion para llenar el reports.py
-func fillLog(ticketID string, waitTime int, priority int, startTime string, endTime string, serveTime string) {
-	// llenar el log
-	// abrir el archivo de registro
-	logFile, err := os.OpenFile("registro.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
-
-	if err != nil {
-		fmt.Printf("Error abriendo el archivo de registro: %v\n", err)
-		return
-	}
-	defer logFile.Close()
-
-	// ingresar datos al arcchivo
-	logMessage := fmt.Sprintf("id:%s,wd:%d,priority:%d,t1:%s,t2:%s,t3:%s\n",
-		ticketID, waitTime, priority, startTime, endTime, serveTime)
-	logFile.WriteString(logMessage)
-
 }
