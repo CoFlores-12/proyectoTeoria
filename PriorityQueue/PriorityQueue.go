@@ -3,12 +3,11 @@ package priorityqueue
 import "fmt"
 
 type Item struct {
-	Data      any
-	Priority  int
-	ID        string
-	Arrival   string
-	StartTime string
-	Next      *Item
+	Data     any
+	Priority int
+	ID       string
+	Arrival  string
+	Next     *Item
 }
 
 func (it Item) String() string {
@@ -30,7 +29,7 @@ func NewPriorityQueue(max int) *PriorityQueue {
 	}
 }
 
-func (pq *PriorityQueue) Push(data any, priority int, id string, arrival string, startTime string) {
+func (pq *PriorityQueue) Push(data any, priority int, id string, arrival string) {
 	if priority < 0 || priority > pq.maxPriority {
 		fmt.Println("Fuera de rango")
 		return
@@ -38,11 +37,10 @@ func (pq *PriorityQueue) Push(data any, priority int, id string, arrival string,
 
 	if pq.priorities[priority] == nil {
 		pq.priorities[priority] = &Item{
-			Data:      data,
-			Priority:  priority,
-			ID:        id,
-			Arrival:   arrival,
-			StartTime: startTime,
+			Data:     data,
+			Priority: priority,
+			ID:       id,
+			Arrival:  arrival,
 		}
 		pq.elements++
 		return
@@ -52,7 +50,7 @@ func (pq *PriorityQueue) Push(data any, priority int, id string, arrival string,
 	for tmp.Next != nil {
 		tmp = tmp.Next
 	}
-	tmp.Next = &Item{Data: data, Priority: priority, ID: id, Arrival: arrival, StartTime: startTime}
+	tmp.Next = &Item{Data: data, Priority: priority, ID: id, Arrival: arrival}
 	pq.elements++
 }
 

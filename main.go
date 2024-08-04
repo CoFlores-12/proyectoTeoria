@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"net/http"
@@ -20,13 +21,14 @@ type Ticket struct {
 type Cajero struct {
 	id       int
 	busy     bool
-	time1    time.Time
-	timeBusy time.Duration
+	time1    string
+	timeBusy int
 }
 
 var queue *priorityqueue.PriorityQueue
 
 var nCajeros int = 2
+var ID int = 1
 var cajeros = make([]*Cajero, nCajeros)
 
 func main() {
@@ -38,85 +40,133 @@ func main() {
 	// iniciar los cajeros
 	for i := 0; i < nCajeros; i++ {
 		timeStart := time.Now()
-		cajeros[i] = &Cajero{id: i + 1, busy: false, time1: timeStart, timeBusy: 0 * time.Second}
+		cajeros[i] = &Cajero{id: i + 1, busy: false, time1: timeStart.Format("15-04-05"), timeBusy: 0}
 	}
 	initServer()
 
 }
 
 // ############################## Server ##############################
-func initServer() {
-	mux := http.NewServeMux()
-
-	go asignarTickets()
-	mux.Handle("/", &homeHandler{})
-	http.ListenAndServe(":8080", mux)
-
-}
 
 type homeHandler struct{}
 
-func (h *homeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+type TicketRequest struct {
+	Priority int `json:"priority"`
+}
 
-	if r.URL.Path == "/NewTicket" {
-		randId := rand.Intn(100)
-		generarTicket(randId)
-		w.Write([]byte("Hello world"))
-		response := fmt.Sprintf("Ingreso el Ticket con ID: %d", randId)
+func (h *homeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodPost && r.URL.Path == "/NewTicket" {
+		var req TicketRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		if req.Priority < 1 || req.Priority > 2 {
+			http.Error(w, "Invalid priority", http.StatusBadRequest)
+			return
+		}
+
+		var id string
+
+		if req.Priority == 1 {
+			id = "T" + strconv.Itoa(ID)
+		} else {
+			id = "R" + strconv.Itoa(ID)
+		}
+
+		generarTicket(id, req.Priority)
+		response := fmt.Sprintf("Ingreso el Ticket con ID: %s y Prioridad: %d", id, req.Priority)
+		ID++
 		w.Write([]byte(response))
 	} else {
-
 		http.NotFound(w, r)
 	}
 }
 
+func initServer() {
+	fmt.Println("Servidor activo en http://localhost:8080")
+	go asignarTickets()
+	mux := http.NewServeMux()
+	mux.Handle("/", &homeHandler{})
+	http.ListenAndServe(":8080", mux)
+}
+
 //############################## Server ##############################
 
-func generarTicket(i int) {
-	randriority := rand.Intn(2) + 1
-
+func generarTicket(id string, priority int) {
 	// Obtener la hora actual
 	currentTime := time.Now()
 
 	// Formatear la hora actual en el formato "HH:MM:SS"
 	timeString := fmt.Sprintf(currentTime.Format("15-04-05"))
 
-	id := strconv.Itoa(i)
-
-	min := 30  // 30 segundos
-	max := 600 // 10  minutos
-	// se calcula aleatoriamente el tiempo que va a tardar en aternderse dicho ticket
-	duracion := strconv.Itoa(rand.Intn(max-min+1) + min)
-
-	newTicket(randriority, id, timeString, duracion)
+	newTicket(priority, id, timeString)
 }
 
 func asignarTickets() {
 	//asignar tickets
 	for true {
 
-		ticket := queue.Pop()
-		if ticket == nil {
-			continue
-		}
-		// Convertir el tiempo
-		numDuracion, err := strconv.Atoi(ticket.StartTime)
-		if err != nil {
-			// Manejar el error si la conversión falla
-			fmt.Println("Error:", numDuracion)
-			return
+		currentTime := time.Now()
+		// Formatear la hora actual en el formato "HH-MM-SS"
+		timeString := fmt.Sprintf(currentTime.Format("15-04-05"))
+
+		if restarSegundos(timeString, cajeros[0].time1) >= cajeros[0].timeBusy {
+			ticket := queue.Pop()
+			if ticket == nil {
+				continue
+			}
+
+			min := 3  // 30 segundos
+			max := 20 // 10  minutos
+			// se calcula aleatoriamente el tiempo que va a tardar en aternderse dicho ticket
+			duracion := rand.Intn(max-min+1) + min
+
+			cajeros[0].timeBusy = duracion
+
+			cajeros[0].time1 = timeString
+
+			fmt.Printf("ID: %s,lo atendio 1, con prioridad: %d, Entro: %s, se va a tardar: %d va a salir: %s\n", ticket.ID, ticket.Priority, ticket.Arrival, duracion, sumarSegundos(timeString, duracion))
+			fillLog(ticket.ID, 1, ticket.Priority, ticket.Arrival, timeString, ticket.Arrival)
+
 		}
 
-		newTimeString, err := sumarSegundos(ticket.Arrival, numDuracion)
-		if err != nil {
-			fmt.Println("Error al sumar segundos:", err)
-			return
-		}
+		if restarSegundos(timeString, cajeros[1].time1) >= cajeros[1].timeBusy {
+			ticket := queue.Pop()
+			if ticket == nil {
+				continue
+			}
 
-		fmt.Printf("ID: %s, Entro: %s, se va a tardar: %s, con prioridad: %d va a salir: %s\n", ticket.ID, ticket.Arrival, ticket.StartTime, ticket.Priority, newTimeString)
-		fillLog(ticket.ID, 1, ticket.Priority, ticket.Arrival, newTimeString, ticket.Arrival)
+			min := 3  // 30 segundos
+			max := 20 // 10  minutos
+			// se calcula aleatoriamente el tiempo que va a tardar en aternderse dicho ticket
+			duracion := rand.Intn(max-min+1) + min
+
+			cajeros[1].timeBusy = duracion
+
+			cajeros[1].time1 = timeString
+
+			fmt.Printf("ID: %s,lo atendio 2, con prioridad: %d, Entro: %s, se va a tardar: %d va a salir: %s\n", ticket.ID, ticket.Priority, ticket.Arrival, duracion, sumarSegundos(timeString, duracion))
+			fillLog(ticket.ID, 2, ticket.Priority, ticket.Arrival, timeString, ticket.Arrival)
+		}
 
 	}
+}
+
+func restarSegundos(hora1, hora2 string) int {
+	t1, err := time.Parse("15-04-05", hora1)
+	if err != nil {
+		return 0
+	}
+
+	t2, err := time.Parse("15-04-05", hora2)
+	if err != nil {
+		return 0
+	}
+
+	diferencia := t1.Sub(t2)
+	return int(diferencia.Seconds())
 }
 
 func parseTimeString(timeString string) (time.Time, error) {
@@ -124,31 +174,24 @@ func parseTimeString(timeString string) (time.Time, error) {
 	return time.Parse(layout, timeString)
 }
 
-func sumarSegundos(timeString string, secondsToAdd int) (string, error) {
+func sumarSegundos(timeString string, secondsToAdd int) string {
 	parsedTime, err := parseTimeString(timeString)
 	if err != nil {
-		return "", err
+		return ""
 	}
 
 	newTime := parsedTime.Add(time.Duration(secondsToAdd) * time.Second)
-	return newTime.Format("15-04-05"), nil
+	return newTime.Format("15-04-05")
 }
 
 // funcion para crear unu ticket
-func newTicket(priority int, id string, arrival string, startTime string) *string {
+func newTicket(priority int, id string, arrival string) *string {
 	ticket := &Ticket{
-		id:        id,
-		arrival:   arrival,
-		startTime: startTime,
+		id:      id,
+		arrival: arrival,
 	}
 
-	if priority == 1 {
-		id = "T" + id
-	} else {
-		id = "R" + id
-	}
-
-	queue.Push(ticket, priority, id, arrival, startTime)
+	queue.Push(ticket, priority, id, arrival)
 	return &id
 }
 
