@@ -25,7 +25,7 @@ type Cajero struct {
 
 var queue *priorityqueue.PriorityQueue
 
-var nCajeros int = 2
+var nCajeros int = 4
 var ID int = 1
 var cajeros = make([]*Cajero, nCajeros)
 
@@ -113,6 +113,8 @@ func asignarTickets() {
 	}
 	defer logFile.Close()
 
+	cajero := 0
+
 	//asignar tickets
 	for true {
 
@@ -120,47 +122,32 @@ func asignarTickets() {
 		// Formatear la hora actual en el formato "HH-MM-SS"
 		timeString := fmt.Sprintf(currentTime.Format("15-04-05"))
 
-		if restarSegundos(timeString, cajeros[0].time1) >= cajeros[0].timeBusy {
+		if restarSegundos(timeString, cajeros[cajero].time1) >= cajeros[cajero].timeBusy {
 			ticket := queue.Pop()
 			if ticket == nil {
 				continue
 			}
 
-			min := 3  // 30 segundos
+			min := 5  // 30 segundos
 			max := 20 // 10  minutos
 			// se calcula aleatoriamente el tiempo que va a tardar en aternderse dicho ticket
 			duracion := rand.Intn(max-min+1) + min
 
-			cajeros[0].timeBusy = duracion
+			cajeros[cajero].timeBusy = duracion
 
-			cajeros[0].time1 = timeString
+			cajeros[cajero].time1 = timeString
 
-			fmt.Printf("ID: %s,lo atendio 1, con prioridad: %d, Entro: %s, se va a tardar: %d, se atendia a las: %s va a salir: %s\n", ticket.ID, ticket.Priority, ticket.Arrival, duracion, timeString, sumarSegundos(timeString, duracion))
+			fmt.Printf("ID: %s,lo atendio %d, con prioridad: %d, Entro: %s, se va a tardar: %d, se atendia a las: %s va a salir: %s\n", ticket.ID, cajeros[cajero].id, ticket.Priority, ticket.Arrival, duracion, timeString, sumarSegundos(timeString, duracion))
 
 			// ingresar datos al arcchivo
-			logMessage := fmt.Sprintf("id:%s,wd:%d,priority:%d,t1:%s,t2:%s,t3:%s\n", ticket.ID, 1, ticket.Priority, ticket.Arrival, timeString, sumarSegundos(timeString, duracion))
+			logMessage := fmt.Sprintf("id:%s,wd:%d,priority:%d,t1:%s,t2:%s,t3:%s\n", ticket.ID, cajeros[cajero].id, ticket.Priority, ticket.Arrival, timeString, sumarSegundos(timeString, duracion))
 			logFile.WriteString(logMessage)
 
 		}
-
-		if restarSegundos(timeString, cajeros[1].time1) >= cajeros[1].timeBusy {
-			ticket := queue.Pop()
-			if ticket == nil {
-				continue
-			}
-
-			min := 30  // 30 segundos
-			max := 600 // 10  minutos = 600 segundos
-			// se calcula aleatoriamente el tiempo que va a tardar en aternderse dicho ticket
-			duracion := rand.Intn(max-min+1) + min
-
-			cajeros[1].timeBusy = duracion
-
-			cajeros[1].time1 = timeString
-
-			fmt.Printf("ID: %s,lo atendio 2, con prioridad: %d, Entro: %s, se va a tardar: %d, se atendia a las: %s va a salir: %s\n", ticket.ID, ticket.Priority, ticket.Arrival, duracion, timeString, sumarSegundos(timeString, duracion))
-			logMessage := fmt.Sprintf("id:%s,wd:%d,priority:%d,t1:%s,t2:%s,t3:%s\n", ticket.ID, 2, ticket.Priority, ticket.Arrival, timeString, sumarSegundos(timeString, duracion))
-			logFile.WriteString(logMessage)
+		if cajero == nCajeros-1 {
+			cajero = 0
+		} else {
+			cajero++
 		}
 
 	}
