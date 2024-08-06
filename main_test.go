@@ -1,3 +1,4 @@
+// se ejecuta con -> go test -v
 package main
 
 import (

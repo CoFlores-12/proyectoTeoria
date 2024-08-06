@@ -1,3 +1,4 @@
+// se ejecuta con -> go run main.go
 package main
 
 import (
@@ -128,8 +129,8 @@ func asignarTickets() {
 				continue
 			}
 
-			min := 5  // 30 segundos
-			max := 20 // 10  minutos
+			min := 30  // 30 segundos
+			max := 600 // 10  minutos
 			// se calcula aleatoriamente el tiempo que va a tardar en aternderse dicho ticket
 			duracion := rand.Intn(max-min+1) + min
 
